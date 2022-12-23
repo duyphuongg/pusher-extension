@@ -1,0 +1,25 @@
+{
+  "name": "pusher-extension",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/duyphuongg/pusher-extension.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/duyphuongg/pusher-extension/issues"
+  },
+  "homepage": "https://github.com/duyphuongg/pusher-extension#readme",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "pusher": "^5.1.2"
+  }
+}
