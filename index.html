@@ -1,5 +1,7 @@
 <html>
   <body>
+    <input type="text" id="eleInput">
+    <button id="eleButton">Add message</button>
     <div id="user_list"></div>
     <script src="https://js.pusher.com/7.2.0/pusher.min.js"></script>
     <script>
@@ -10,17 +12,20 @@
           cluster: "ap1", // Replace with 'cluster' from dashboard
           forceTLS: true,
           channelAuthorization: {
-            endpoint: "http://localhost:5000/pusher/auth",
-          }
+            endpoint: "http://localhost:3000/pusher/auth",
+            params: {
+              user_id: randomNumber(),
+            },
+          },
         }
       );
-      if (!document.cookie.match("(^|;) ?user_id=([^;]*)(;|$)")) {
-        // Primitive authorization! This 'user_id' cookie is read by your authorization endpoint,
-        // and used as the user_id in the subscription to the 'presence-quickstart'
-        // channel. This is then displayed to all users in the user list.
-        // In your production app, you should use a secure authorization system.
-        document.cookie = "user_id=" + prompt("Your initials:");
-      }
+      // if (!document.cookie.match("(^|;) ?user_id=([^;]*)(;|$)")) {
+      //   // Primitive authorization! This 'user_id' cookie is read by your authorization endpoint,
+      //   // and used as the user_id in the subscription to the 'presence-quickstart'
+      //   // channel. This is then displayed to all users in the user list.
+      //   // In your production app, you should use a secure authorization system.
+      //   document.cookie = "user_id=" + prompt("Your initials:");
+      // }
       const channel = pusher.subscribe("presence-quickstart");
       const hashCode = (s) =>
         s.split("").reduce((a, b) => {
@@ -30,29 +35,64 @@
       function addMemberToUserList(memberId) {
         userEl = document.createElement("div");
         userEl.id = "user_" + memberId;
+        userEl.classList.add("userItem");
         userEl.innerText = memberId;
         userEl.style.backgroundColor =
           "hsl(" + (hashCode(memberId) % 360) + ",70%,60%)";
         document.getElementById("user_list").appendChild(userEl);
       }
-      channel.bind("pusher:subscription_succeeded", () =>
-        channel.members.each((member) => addMemberToUserList(member.id))
-      );
+      channel.bind("pusher:subscription_succeeded", () => {
+        channel.members.each((member) => addMemberToUserList(member.id));
+        var count = channel.members.count;
+        var me = channel.members.me;
+        console.log("subscription_succeeded", count, me);
+      });
       channel.bind("pusher:member_added", (member) =>
         addMemberToUserList(member.id)
       );
       channel.bind("pusher:member_removed", (member) => {
+        console.log("member_removed", member);
         const userEl = document.getElementById("user_" + member.id);
         userEl.parentNode.removeChild(userEl);
       });
+
+      channel.bind("client-msg", (data, metadata) => {
+        const me = channel.members.me;
+        console.log(
+          "I received",
+          data.value,
+          "from user",
+          data.user_id,
+          "current id is", me.id
+        );
+      });
+
+      pusher.connection.bind("error", function (err) {
+        if (err.error.data.code === 4004) {
+          log(">>> detected limit error");
+        }
+      });
+
+      const inputEle = document.querySelector('#eleInput');
+      const buttonEle = document.querySelector('#eleButton');
+
+      buttonEle.addEventListener("click", function(){
+        const val = inputEle.value
+        const me = channel.members.me;
+        channel.trigger("client-msg",{value: val, user_id: me.id})
+      })
+
+      function randomNumber() {
+        return Math.floor(Math.random() * 100) + 1;
+      }
     </script>
     <style>
       body {
         margin: 1em;
       }
       #user_list div {
-        float: right;
-        margin-left: -12px;
+        /* float: right;
+        margin-left: -12px; */
         font-family: sans-serif;
         text-align: center;
         height: 40px;
@@ -61,6 +101,7 @@
         border-radius: 50%;
         border: 3px solid white;
         color: white;
+        overflow: hidden;
       }
     </style>
   </body>
