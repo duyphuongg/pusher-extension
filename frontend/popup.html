@@ -11,10 +11,32 @@
         width: 260px;
         font-family: "Kosugi Maru", sans-serif;
       }
+      body {
+        margin: 1em;
+      }
+      #user_list div {
+        float: right;
+        margin-left: -12px;
+        font-family: sans-serif;
+        text-align: center;
+        height: 40px;
+        width: 40px;
+        line-height: 40px;
+        border-radius: 50%;
+        border: 3px solid white;
+        color: white;
+      }
     </style>
     <title>NFL score</title>
   </head>
   <body>
+    <div id="user_list">
+      User list
+      <input type="text" value="" id="userInput">
+      <button id="addUserBtn">Add user</button>
+    </div>
+    
+    <hr>
     <nav class="navbar navbar-dark bg-dark">
       <a class="navbar-brand" id="scores" href="#">Real-time NFL scores </a>
     </nav>
