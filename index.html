@@ -44,29 +44,29 @@
           addMemberToUserList(member.id);
         });
 
-        var count = channel.members.count;
-        var me = channel.members.me;
+        const count = channel.members.count;
+        const me = channel.members.me;
         if (count === 1) {
           handleAddBrowserUser(me.id);
         }
 
-        console.log("subscription_succeeded", count, me);
+        console.log("subscription_succeeded", count, me, channel.members);
       });
 
       channel.bind("pusher:member_added", (member) => {
         addMemberToUserList(member.id);
-        let me = channel.members.me;
-        const list_browsers_filter = list_browsers.filter(i => i.id !== member.id)
-        const randomIndex = randomNumber(list_browsers_filter.length)
-        if(list_browsers_filter[randomIndex].id === me.id){
+        const me = channel.members.me;
+        const list = Object.keys(channel.members.members)
+        const list_browsers_filter = list.filter(i => i !== member.id)
+        if(list_browsers_filter[list_browsers_filter.length - 1] === me.id){
           handleAddBrowserUser(member.id);
         }
 
-        let check = list_browsers.every((i) => i.id !== member.id);
+        const check = list_browsers.every((i) => i.id !== member.id);
         if (check) {
           list_browsers.push({ id: member.id, ...data_default });
         }
-        let checkMe = list_browsers.every((i) => i.id !== me.id);
+        const checkMe = list_browsers.every((i) => i.id !== me.id);
         if (checkMe) {
           list_browsers.push({ id: me.id, ...data_default });
         }
@@ -76,11 +76,13 @@
       channel.bind("pusher:member_removed", (member) => {
         let me = channel.members.me;
         const list_browsers_filter = list_browsers.filter(i => i.id !== member.id)
-        const randomIndex = randomNumber(list_browsers_filter.length)
-        if(list_browsers_filter[randomIndex].id === me.id){
+        channel.trigger("client-update-list-browser", list_browsers_filter);
+
+        const list = Object.keys(channel.members.members)
+        const list_browsers_remove = list.filter(i => i !== member.id)
+        if(list_browsers_remove[list_browsers_remove.length - 1] === me.id){
           handleRemoveBrowserUser(member.id);
         }
-        channel.trigger("client-update-list-browser", list_browsers_filter);
         const userEl = document.getElementById("user_" + member.id);
         userEl.parentNode.removeChild(userEl);
       });
@@ -146,8 +148,8 @@
         }
       });
 
-      function randomNumber(number) {
-        return Math.floor(Math.random() * number) + 1;
+      function randomNumber(max) {
+        return Math.floor(Math.random() * max);
       }
 
       function handleAddBrowserUser(id) {
