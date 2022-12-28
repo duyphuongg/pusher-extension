@@ -12,6 +12,8 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
+
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -19,11 +21,16 @@ app.use(cors());
 app.use(cookieParser());
 
 const handleAuth = (req, res) => {
-  const socketId = req.body.socket_id;
-  const channel = req.body.channel_name;
-  const user_id = req.body.user_id;
-  const presenceData = { user_id };
-  const authResponse = pusher.authorizeChannel(socketId, channel, presenceData);
+  const { socket_id, channel_name, user_id, time_add } = req.body;
+  const presenceData = {
+    user_id,
+  };
+
+  const authResponse = pusher.authorizeChannel(
+    socket_id,
+    channel_name,
+    presenceData
+  );
   res.send(authResponse);
 };
 
@@ -52,7 +59,6 @@ const handleOnline = () => {
     name: "Colts",
     score: 0,
   };
-
 };
 
 app.get("/start", simulate);

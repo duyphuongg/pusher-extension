@@ -1,10 +1,13 @@
 <html>
   <body>
-    <input type="text" id="eleInput">
+    <!-- <input type="text" id="eleInput" /> -->
     <button id="eleButton">Add message</button>
+    <button id="eleButtonBlock" style="display: none">Block</button>
     <div id="user_list"></div>
     <script src="https://js.pusher.com/7.2.0/pusher.min.js"></script>
     <script>
+      let list_browsers = [];
+      let data_default = { is_block: false, is_importing: false };
       Pusher.logToConsole = true;
       const pusher = new Pusher(
         "28b3898fcdb6c881cf05", // Replace with 'key' from dashboard
@@ -12,20 +15,14 @@
           cluster: "ap1", // Replace with 'cluster' from dashboard
           forceTLS: true,
           channelAuthorization: {
-            endpoint: "http://localhost:3000/pusher/auth",
+            endpoint: "http://localhost:5000/pusher/auth",
             params: {
-              user_id: randomNumber(),
+              user_id: randomNumber(100),
             },
           },
         }
       );
-      // if (!document.cookie.match("(^|;) ?user_id=([^;]*)(;|$)")) {
-      //   // Primitive authorization! This 'user_id' cookie is read by your authorization endpoint,
-      //   // and used as the user_id in the subscription to the 'presence-quickstart'
-      //   // channel. This is then displayed to all users in the user list.
-      //   // In your production app, you should use a secure authorization system.
-      //   document.cookie = "user_id=" + prompt("Your initials:");
-      // }
+
       const channel = pusher.subscribe("presence-quickstart");
       const hashCode = (s) =>
         s.split("").reduce((a, b) => {
@@ -41,49 +38,106 @@
           "hsl(" + (hashCode(memberId) % 360) + ",70%,60%)";
         document.getElementById("user_list").appendChild(userEl);
       }
+
       channel.bind("pusher:subscription_succeeded", () => {
-        channel.members.each((member) => addMemberToUserList(member.id));
+        channel.members.each((member) => {
+          addMemberToUserList(member.id);
+        });
+
         var count = channel.members.count;
         var me = channel.members.me;
+        if (count === 1) {
+          list_browsers.push({ id: me.id, ...data_default });
+          channel.trigger("client-update-list-browser", list_browsers);
+        }
+
         console.log("subscription_succeeded", count, me);
       });
-      channel.bind("pusher:member_added", (member) =>
-        addMemberToUserList(member.id)
-      );
+
+      channel.bind("pusher:member_added", (member) => {
+        addMemberToUserList(member.id);
+        let me = channel.members.me;
+
+        let check = list_browsers.every((i) => i.id !== member.id);
+        if (check) {
+          list_browsers.push({ id: member.id, ...data_default });
+        }
+        let checkMe = list_browsers.every((i) => i.id !== me.id);
+        if (checkMe) {
+          list_browsers.push({ id: me.id, ...data_default });
+        }
+        channel.trigger("client-update-list-browser", list_browsers);
+      });
+
       channel.bind("pusher:member_removed", (member) => {
-        console.log("member_removed", member);
+        let list = list_browsers.filter((i) => {
+          return i.id !== member.id;
+        });
+        channel.trigger("client-update-list-browser", list);
         const userEl = document.getElementById("user_" + member.id);
         userEl.parentNode.removeChild(userEl);
       });
 
-      channel.bind("client-msg", (data, metadata) => {
-        const me = channel.members.me;
-        console.log(
-          "I received",
-          data.value,
-          "from user",
-          data.user_id,
-          "current id is", me.id
-        );
+      channel.bind("client-update-list-browser", (data) => {
+        let dataFilter = [];
+        channel.members.each((member) => {
+          let indexMember = data.findIndex((i) => i.id === member.id);
+          if (indexMember !== -1) {
+            dataFilter.push(data[indexMember]);
+          } else {
+            dataFilter.push({ id: member.id, ...data_default });
+          }
+        });
+        list_browsers = dataFilter;
       });
 
-      pusher.connection.bind("error", function (err) {
-        if (err.error.data.code === 4004) {
-          log(">>> detected limit error");
+      // const inputEle = document.querySelector("#eleInput");
+      const buttonEle = document.querySelector("#eleButton");
+      const buttonBlockEle = document.querySelector("#eleButtonBlock");
+
+      buttonEle.addEventListener("click", function () {
+        // const val = inputEle.value;
+        const me = channel.members.me;
+        const browser_index = list_browsers.findIndex((i) => i.id === me.id);
+        if (browser_index !== -1) {
+          list_browsers[browser_index].is_importing = true;
+          channel.trigger("client-update-list-browser", list_browsers);
+        }
+        let isBlock = confirm("is block?");
+        if(isBlock){
+          list_browsers[browser_index].is_block = true;
+          list_browsers[browser_index].is_importing = false;
+          channel.trigger("client-update-list-browser", list_browsers);
+            channel.trigger("client-import-review-another-browser", {
+            user_import_id: me.id,
+          });
         }
       });
 
-      const inputEle = document.querySelector('#eleInput');
-      const buttonEle = document.querySelector('#eleButton');
+      channel.bind("client-import-review-another-browser", (data) => {
+        const browser_index = list_browsers.findIndex((i) => !i.is_block && !i.is_importing);
+        const me = channel.members.me
+        if(browser_index !== -1 && list_browsers[browser_index].id === me.id){
+          list_browsers[browser_index].is_importing = true;
+          let isBlock = confirm("is block?");
+          if(isBlock){
+            if (browser_index !== -1) {
+              list_browsers[browser_index].is_block = true;
+              list_browsers[browser_index].is_importing = false;
+              channel.trigger("client-update-list-browser", list_browsers);
+            }
+            channel.trigger("client-import-review-another-browser", {
+              user_import_id: data.user_import_id,
+            });
+          }
+        }else{
+          console.log("All browser are block!", data.user_import_id);
+          //import api
+        }
+      });
 
-      buttonEle.addEventListener("click", function(){
-        const val = inputEle.value
-        const me = channel.members.me;
-        channel.trigger("client-msg",{value: val, user_id: me.id})
-      })
-
-      function randomNumber() {
-        return Math.floor(Math.random() * 100) + 1;
+      function randomNumber(number) {
+        return Math.floor(Math.random() * number) + 1;
       }
     </script>
     <style>
