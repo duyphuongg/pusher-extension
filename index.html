@@ -17,7 +17,7 @@
           channelAuthorization: {
             endpoint: "http://localhost:5000/pusher/auth",
             params: {
-              user_id: randomNumber(100),
+              user_id: randomNumber(1000),
             },
           },
         }
@@ -47,8 +47,7 @@
         var count = channel.members.count;
         var me = channel.members.me;
         if (count === 1) {
-          list_browsers.push({ id: me.id, ...data_default });
-          channel.trigger("client-update-list-browser", list_browsers);
+          handleAddBrowserUser(me.id);
         }
 
         console.log("subscription_succeeded", count, me);
@@ -57,6 +56,11 @@
       channel.bind("pusher:member_added", (member) => {
         addMemberToUserList(member.id);
         let me = channel.members.me;
+        const list_browsers_filter = list_browsers.filter(i => i.id !== member.id)
+        const randomIndex = randomNumber(list_browsers_filter.length)
+        if(list_browsers_filter[randomIndex].id === me.id){
+          handleAddBrowserUser(member.id);
+        }
 
         let check = list_browsers.every((i) => i.id !== member.id);
         if (check) {
@@ -70,10 +74,13 @@
       });
 
       channel.bind("pusher:member_removed", (member) => {
-        let list = list_browsers.filter((i) => {
-          return i.id !== member.id;
-        });
-        channel.trigger("client-update-list-browser", list);
+        let me = channel.members.me;
+        const list_browsers_filter = list_browsers.filter(i => i.id !== member.id)
+        const randomIndex = randomNumber(list_browsers_filter.length)
+        if(list_browsers_filter[randomIndex].id === me.id){
+          handleRemoveBrowserUser(member.id);
+        }
+        channel.trigger("client-update-list-browser", list_browsers_filter);
         const userEl = document.getElementById("user_" + member.id);
         userEl.parentNode.removeChild(userEl);
       });
@@ -89,6 +96,7 @@
           }
         });
         list_browsers = dataFilter;
+        console.log("List browser: ", list_browsers);
       });
 
       // const inputEle = document.querySelector("#eleInput");
@@ -104,23 +112,25 @@
           channel.trigger("client-update-list-browser", list_browsers);
         }
         let isBlock = confirm("is block?");
-        if(isBlock){
+        if (isBlock) {
           list_browsers[browser_index].is_block = true;
           list_browsers[browser_index].is_importing = false;
           channel.trigger("client-update-list-browser", list_browsers);
-            channel.trigger("client-import-review-another-browser", {
+          channel.trigger("client-import-review-another-browser", {
             user_import_id: me.id,
           });
         }
       });
 
       channel.bind("client-import-review-another-browser", (data) => {
-        const browser_index = list_browsers.findIndex((i) => !i.is_block && !i.is_importing);
-        const me = channel.members.me
-        if(browser_index !== -1 && list_browsers[browser_index].id === me.id){
+        const browser_index = list_browsers.findIndex(
+          (i) => !i.is_block && !i.is_importing
+        );
+        const me = channel.members.me;
+        if (browser_index !== -1 && list_browsers[browser_index].id === me.id) {
           list_browsers[browser_index].is_importing = true;
           let isBlock = confirm("is block?");
-          if(isBlock){
+          if (isBlock) {
             if (browser_index !== -1) {
               list_browsers[browser_index].is_block = true;
               list_browsers[browser_index].is_importing = false;
@@ -130,7 +140,7 @@
               user_import_id: data.user_import_id,
             });
           }
-        }else{
+        } else {
           console.log("All browser are block!", data.user_import_id);
           //import api
         }
@@ -138,6 +148,14 @@
 
       function randomNumber(number) {
         return Math.floor(Math.random() * number) + 1;
+      }
+
+      function handleAddBrowserUser(id) {
+        alert(`add new user : ${id}`);
+      }
+
+      function handleRemoveBrowserUser(id) {
+        alert(`add remove user : ${id}`);
       }
     </script>
     <style>
